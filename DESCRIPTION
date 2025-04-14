@@ -1,0 +1,28 @@
+Package: smoqr
+Type: Package
+Title: Fitting a series of non-crossing smooth quantile regression using Exponentiated Spline Monotonic Quantile Function
+Version: 0.0.1
+Authors@R: c(
+    person(
+      "Trinh", "Dong",
+      email = "trinhdhk@outlook.com.vn",
+      role = c("aut", "cre")
+    )
+  )
+Description: This is experimental
+License: MIT
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.2
+Roxygen: list(markdown = TRUE)
+depends:
+  brms
+  R (>= 4.1)
+imports:
+  rstan
+  splines
+  splines2
+  formula.tools
+  rlang
+suggests:
+  tidybayes
