@@ -12,7 +12,7 @@ cisp(x, ...)
 \item{...}{passed to \code{\link[splines2:iSpline]{splines2::isp()}}}
 }
 \description{
-This function is a soft wrapper over \code{\link[splines2:iSpline]{splines2::isp()}} but try to center the basis
+This function is a soft wrapper over \code{\link[splines2:iSpline]{splines2::isp()}} but try to centre the basis
 }
 \seealso{
 \code{\link[splines2:iSpline]{splines2::isp()}}

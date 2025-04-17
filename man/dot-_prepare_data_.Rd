@@ -4,7 +4,15 @@
 \alias{._prepare_data_}
 \title{Prepare the data for the fit}
 \usage{
-._prepare_data_(data, boundary, grain, include_median = TRUE)
+._prepare_data_(
+  data,
+  boundary,
+  grain,
+  include_median = TRUE,
+  all_intr = FALSE,
+  isp_df,
+  isp_degree
+)
 }
 \description{
 Prepare the data for the fit

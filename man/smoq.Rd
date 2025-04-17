@@ -11,6 +11,7 @@ smoq(
   dist = NA,
   isp_df = 4,
   isp_degree = 3,
+  interaction_type = c("scale_only", "all"),
   smoq_control = NULL,
   ...
 )
@@ -35,8 +36,10 @@ if a function, must be a function that calculate the inverse cumulative probabil
 
 \item{isp_degree}{\verb{<NA|integer>} the degrees of M-spline function to fit the monotonic splines, ignored if \code{!is.na(dist)}}
 
-\item{smoq_control}{\verb{<smoq_control>} generated from smoq_control.
+\item{interaction_type}{\verb{<character(1)>} \code{"scale_only"} to assume the same skewness and kurtosis (default), otherwise \code{"all"}
 Currently configurable are the boundary quantiles and the number of intermediate quantiles to discretise, governed by grain}
+
+\item{smoq_control}{\verb{<smoq_control>} generated from smoq_control.}
 
 \item{...}{other parameters passed to \code{brms::brm}, commonly used are: \verb{prior, iter, warmup, cores, chains, threading}. See \code{\link[brms:brm]{brms::brm()}}.
 Note that brms/Stan seldom needs more than 10,000 iterations. For simple models, the default 2000 is sufficient. For simple linear regression, 1000 is more than enough.}
