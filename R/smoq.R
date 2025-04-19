@@ -23,7 +23,7 @@
 #' @return a `brmsfit` object
 #' @import brms
 #' @importFrom splines2 isp
-#' @importFrom formula.tools lhs rhs
+#' @importFrom formula.tools lhs rhs rhs.vars
 #' @importFrom rlang new_formula
 #' @seealso [brms::brm()]
 #' @export
@@ -36,6 +36,7 @@ smoq <- function(
     isp_degree = 3,
     interaction_type = c('scale_only', 'all'),
     smoq_control = NULL,
+    prior = NULL,
     ...){
 
   # Init
@@ -72,24 +73,28 @@ smoq <- function(
   formula_lp <- update(formula$main, lp ~ .)
 
 
-  formula_quantile <-
+  if (interaction_type == 'scale_only'){
+    formula_quantile <- list({
       if (use_spline){
         if (smoq_control$grain <= 5 && isp_degree >= 3)
           warning('Using small number of grain with cubic spline may be unstable. It is advisable to set isp_degree to 2 or increase grain.')
         substitute(quant ~ 0 + cisp(lq, df=df, degree=degree), env = list(df=isp_df, degree=isp_degree))
       }
-    else
-      quant ~ 0 + dist(q)
-  if (interaction_type == 'scale_only'){
+      else
+        quant ~ 0 + dist(q)})
     # substitute(quant ~ 0 + dist(q), env=list(dist=dist))
     formula_interaction <- list(update(formula$interaction, intr ~ 0 + .))
     main_form <- new_formula(lhs(formula$main), quote(lp + exp(intr)*quant))
   } else {
-    intr <- paste0('lp + ', paste0('exp(intr', 1:isp_df, ')*slq', 1:isp_df, collapse = '+')) |> str2lang()
+    intr <- paste0('lp + ', paste0('exp(intr', 1:isp_df, ')/(1+exp(intr', 1:isp_df, '))*quant', 1:isp_df, collapse = '+')) |> str2lang()
+    # intr <- paste0('lp + ', paste0('exp(intr', 1:isp_df, ')*quant', 1:isp_df, collapse = '+')) |> str2lang()
     main_form <- new_formula(lhs(formula$main), intr)
     intr_rhs <- rhs(formula$interaction)
     formula_interaction <- lapply(seq_len(isp_df), function(i){
       new_formula(as.symbol(paste0('intr', i)), intr_rhs)
+    })
+    formula_quantile <- lapply(seq_len(isp_df), function(i){
+      new_formula(as.symbol(paste0('quant', i)), str2lang(paste0('0 + slq',i)))
     })
   }
 
@@ -99,22 +104,42 @@ smoq <- function(
                  flist = list(
                    formula_lp,
                    sapply(formula_interaction, lf, cmc=FALSE),
+                   sapply(formula_quantile, lf, cmc=FALSE),
                    quantile ~ 0 + offset(lq)
                  ))
 
-  if (interaction_type == 'scale_only') bf_forms <- bf_forms + formula_quantile
+  # if (interaction_type == 'scale_only') bf_forms <- bf_forms + formula_quantile
 
   # Add more distributional formulae
   for (dform in dist_formulae){
     bf_forms <- bf_forms + dform
   }
 
+  # Ensure quantile coef to be positive
+  sd_x <- apply(model.frame(update(formula$interaction, NULL~.)), 2, sd, na.rm=TRUE) |> c(1) |> min()
+  sd_y <- apply(model.frame(update(formula$interaction,. ~ NULL)), 2, sd, na.rm=TRUE) |> max()
+  sdxy <-  round(sd_y/sd_x,3)
+  if (interaction_type == 'scale_only') {
+    prior_q <- prior(student_t(3,0,1), lb=0, nlpar = 'quant')
+  } else {
+    prior_q <- lapply(1:isp_df, function(i){
+      has_intercept <- attr(terms(formula$interaction), 'intercept') == 1
+      set_prior(paste0('std_normal()'), class='b', nlpar=paste0('intr',i))+
+        set_prior(paste0('student_t(3, 0,', 3*sdxy,')'), class='b', lb=0, nlpar=paste0('quant', i))
+      # set_prior(paste0('student_t(3, 0,', 2*sdxy,')'), class='b', nlpar=paste0('intr',i)) +
+      # set_prior('uniform(0,1)', class='b', lb=0, ub=1, nlpar=paste0('quant', i))
+    })
+    prior_q <- Reduce("+", prior_q)
+  }
+  # prior <- if (!is.null(prior)) prior + prior_q else prior
+  prior <- prior_q + prior
 
   # Run backend
   fit <- brm(
     formula = bf_forms,
     data = stack_data,
-    family=asym_laplace(),
+    family = asym_laplace(),
+    prior = prior,
     ...
   )
   class(fit) <- c('smoqfit', class(fit))

@@ -13,6 +13,7 @@ smoq(
   isp_degree = 3,
   interaction_type = c("scale_only", "all"),
   smoq_control = NULL,
+  prior = NULL,
   ...
 )
 }
