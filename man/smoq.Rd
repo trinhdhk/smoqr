@@ -11,7 +11,7 @@ smoq(
   dist = NA,
   isp_df = 4,
   isp_degree = 3,
-  interaction_type = c("scale_only", "all"),
+  interaction_type = c("constrained", "flexible"),
   smoq_control = NULL,
   prior = NULL,
   ...

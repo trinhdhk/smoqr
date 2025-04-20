@@ -23,7 +23,7 @@
 #' @return a `brmsfit` object
 #' @import brms
 #' @importFrom splines2 isp
-#' @importFrom formula.tools lhs rhs rhs.vars
+#' @importFrom formula.tools lhs rhs rhs.vars lhs.vars
 #' @importFrom rlang new_formula
 #' @seealso [brms::brm()]
 #' @export
@@ -34,7 +34,7 @@ smoq <- function(
     dist=NA,
     isp_df = 4,
     isp_degree = 3,
-    interaction_type = c('scale_only', 'all'),
+    interaction_type = c('constrained', 'flexible'),
     smoq_control = NULL,
     prior = NULL,
     ...){
@@ -53,8 +53,8 @@ smoq <- function(
     }
   }
 
-  if (interaction_type == 'all' && !use_spline){
-    stop("Don't know how to parametrise kurtosis without spline.")
+  if (interaction_type == 'flexible' && !use_spline){
+    stop("It's not very helpful to parametrise kurtosis without spline.")
   }
 
   # Prepare data
@@ -73,7 +73,7 @@ smoq <- function(
   formula_lp <- update(formula$main, lp ~ .)
 
 
-  if (interaction_type == 'scale_only'){
+  if (interaction_type == 'constrained'){
     formula_quantile <- list({
       if (use_spline){
         if (smoq_control$grain <= 5 && isp_degree >= 3)
@@ -83,8 +83,9 @@ smoq <- function(
       else
         quant ~ 0 + dist(q)})
     # substitute(quant ~ 0 + dist(q), env=list(dist=dist))
-    formula_interaction <- list(update(formula$interaction, intr ~ 0 + .))
-    main_form <- new_formula(lhs(formula$main), quote(lp + exp(intr)*quant))
+    formula_interaction <- list(update(formula$interaction, intr ~ .))
+    # main_form <- new_formula(lhs(formula$main), quote(lp + exp(intr)*quant))
+    main_form <- new_formula(lhs(formula$main), quote(lp + exp(intr)/(1+exp(intr))*quant))
   } else {
     intr <- paste0('lp + ', paste0('exp(intr', 1:isp_df, ')/(1+exp(intr', 1:isp_df, '))*quant', 1:isp_df, collapse = '+')) |> str2lang()
     # intr <- paste0('lp + ', paste0('exp(intr', 1:isp_df, ')*quant', 1:isp_df, collapse = '+')) |> str2lang()
@@ -116,22 +117,29 @@ smoq <- function(
   }
 
   # Ensure quantile coef to be positive
-  sd_x <- apply(model.frame(update(formula$interaction, NULL~.)), 2, sd, na.rm=TRUE) |> c(1) |> min()
-  sd_y <- apply(model.frame(update(formula$interaction,. ~ NULL)), 2, sd, na.rm=TRUE) |> max()
+  # Create a weakly informative prior using student_t(3, 0, 5*sd_y/sd_x)
+  # Then scale up the logit
+  # Inspired by rstanarm and brms
+  xvars <- all.vars(update(formula$interaction, NULL~.)) |> intersect(names(data))
+  yvars <- all.vars(update(formula$interaction,. ~ NULL)) |> intersect(names(data))
+  sd_x <- apply(subset(data, select=xvars, drop=FALSE), 2, sd, na.rm=TRUE) |> c(1) |> min()
+  sd_y <- apply(subset(data, select=yvars, drop=FALSE), 2, sd, na.rm=TRUE) |> max()
   sdxy <-  round(sd_y/sd_x,3)
-  if (interaction_type == 'scale_only') {
-    prior_q <- prior(student_t(3,0,1), lb=0, nlpar = 'quant')
+  if (interaction_type == 'constrained') {
+    prior_q <-
+      set_prior(paste0('logistic(0, 1)'), class='b', nlpar='intr') +
+      set_prior(paste0('student_t(3, 0,', 5*sdxy,')'),
+                         lb=0, nlpar = 'quant')
   } else {
     prior_q <- lapply(1:isp_df, function(i){
-      has_intercept <- attr(terms(formula$interaction), 'intercept') == 1
-      set_prior(paste0('std_normal()'), class='b', nlpar=paste0('intr',i))+
-        set_prior(paste0('student_t(3, 0,', 3*sdxy,')'), class='b', lb=0, nlpar=paste0('quant', i))
+      # has_intercept <- attr(terms(formula$interaction), 'intercept') == 1
+      set_prior(paste0('logistic(0, 1)'), class='b', nlpar=paste0('intr',i))+
+        set_prior(paste0('student_t(3, 0,', 5*sdxy,')'), class='b', lb=0, nlpar=paste0('quant', i))
       # set_prior(paste0('student_t(3, 0,', 2*sdxy,')'), class='b', nlpar=paste0('intr',i)) +
       # set_prior('uniform(0,1)', class='b', lb=0, ub=1, nlpar=paste0('quant', i))
     })
     prior_q <- Reduce("+", prior_q)
   }
-  # prior <- if (!is.null(prior)) prior + prior_q else prior
   prior <- prior_q + prior
 
   # Run backend

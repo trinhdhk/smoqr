@@ -3,15 +3,15 @@
 ._prepare_data_ <- function(data, boundary, grain, include_median=TRUE, all_intr=FALSE, isp_df, isp_degree){
   boundary <- sort(abs(boundary))
   # Create a grid of quantiles
-  lQs <- seq(qlogis(boundary[[1]]), qlogis(boundary[[2]]), length.out=grain)
-  if (include_median && !0 %in% lQs) lQs <- sort(c(0, lQs))
+  Qs <- seq(boundary[[1]], boundary[[2]], length.out=grain)
+  if (include_median && !0.5 %in% Qs) Qs <- sort(c(0.5, Qs))
   if ('q' %in% names(data) || 'lq' %in% names(data)) {
     stop('q and lq are reserved names for model and must not be existing in the dataset.')
   }
   data_stack <- lapply(
-    lQs,
-    function(lQ){
-      transform(data, q=plogis(lQ), lq=lQ)
+    Qs,
+    function(Q){
+      transform(data, q=Q, lq=qlogis(Q))
 
     }
   )

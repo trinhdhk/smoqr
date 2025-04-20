@@ -7,14 +7,15 @@ mixedmod <-
   smoq(
     list(
       main = Reaction ~ Days + (1 + Days | Subject),
-      interaction = Reaction ~ ns(Days,df=3) + (1 + ns(Days,df=3) | Subject)
+      interaction = Reaction ~ s(lq, by=Subject, k=5) + ns(Days,df=3) + (1 + ns(Days,df=3) | Subject)
     ),
     iter=3000,
     cores=2, chains=2,
-    isp_df=4,
+    isp_df=5,
     isp_degree=3,
-    smoq_control=smoq_control(c(0.1,0.9), 4),
+    smoq_control=smoq_control(c(0.1,0.9), 5),
     data = sleepstudy,
+    # interaction_type='all',
     init_r=1,
     threads=5,
     control=list(max_treedepth=14, adapt_delta=0.75))
@@ -57,7 +58,7 @@ sleepstudy |>
   dplyr::filter(Subject==308) |>
   add_quantiles(c(0.1, 0.5, 0.9)) |>
   # ._prepare_data_(c(0.1,0.9), 3) |> # This is a hidden function
-  add_linpred_draws(mixedmod_flex, ndraws=500) |>
+  add_linpred_draws(mixedmod, ndraws=500) |>
   dplyr::summarise(.linpred=mean(.linpred)) |>
   ggplot(aes(x=Days)) +
   geom_line(aes(
