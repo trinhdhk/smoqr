@@ -132,11 +132,8 @@ smoq <- function(
                          lb=0, nlpar = 'quant')
   } else {
     prior_q <- lapply(1:isp_df, function(i){
-      # has_intercept <- attr(terms(formula$interaction), 'intercept') == 1
       set_prior(paste0('logistic(0, 1)'), class='b', nlpar=paste0('intr',i))+
         set_prior(paste0('student_t(3, 0,', 5*sdxy,')'), class='b', lb=0, nlpar=paste0('quant', i))
-      # set_prior(paste0('student_t(3, 0,', 2*sdxy,')'), class='b', nlpar=paste0('intr',i)) +
-      # set_prior('uniform(0,1)', class='b', lb=0, ub=1, nlpar=paste0('quant', i))
     })
     prior_q <- Reduce("+", prior_q)
   }

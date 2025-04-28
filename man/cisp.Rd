@@ -4,10 +4,12 @@
 \alias{cisp}
 \title{Centred iSplines to ensure that the median is 0}
 \usage{
-cisp(x, ...)
+cisp(x, center.point = 0, ...)
 }
 \arguments{
 \item{x}{\verb{<numeric()} a vector}
+
+\item{center.point}{\verb{<numeric(1)>} a scalar determining the center of x; leave as NULL for get the median}
 
 \item{...}{passed to \code{\link[splines2:iSpline]{splines2::isp()}}}
 }

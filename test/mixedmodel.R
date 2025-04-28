@@ -6,19 +6,35 @@ library(splines)
 mixedmod <-
   smoq(
     list(
-      main = Reaction ~ Days + (1 + Days | Subject),
-      interaction = Reaction ~ s(lq, by=Subject, k=5) + ns(Days,df=3) + (1 + ns(Days,df=3) | Subject)
+      main = Reaction ~ ns(Days,df=3) + (1 + ns(Days,df=3) | Subject),
+      interaction = Reaction ~ ns(lq,df=3) + ns(Days,df=3) + (1 + ns(Days,df=3) | Subject)
     ),
-    iter=3000,
-    cores=2, chains=2,
-    isp_df=5,
-    isp_degree=3,
-    smoq_control=smoq_control(c(0.1,0.9), 5),
+    # iter=3000,
+    # cores=2, chains=2,
+    isp_df=3,
+    isp_degree=1,
+    smoq_control=smoq_control(c(0.1,0.9), 3),
     data = sleepstudy,
     # interaction_type='all',
-    init_r=1,
+    algorithm = 'laplace',
+    # iter=150000, tol_rel_obj = 1e-4,
+    # importance_resampling=TRUE,
+    sig_figs=18,
+    backend='cmdstanr',
+
+    # init_r=1,
+    opt_args=list(iter=20000,
+                  tol_param=1e-9,
+                  tol_rel_grad=1e-9,
+                  tol_rel_obj=1e-9,
+                  algorithm='bfgs'),
+    init=1,
+    # num_paths=18,
+    # max_lbfgs_iters = 1e5,
+    # num_elbo_draws=1000,
     threads=5,
-    control=list(max_treedepth=14, adapt_delta=0.75))
+    # control=list(max_treedepth=14, adapt_delta=0.75)
+    )
 
 # Same model but assuming a Gaussian process (still varying variance)
 mixedmod_norm <-
@@ -69,8 +85,8 @@ sleepstudy |>
 
 pred_sleep <- sleepstudy |>
   dplyr::filter(Subject==308) |>
-  ._prepare_data_(c(0.1,0.9), 9) |>
-  add_linpred_draws(mixedmod_norm, ndraws=500)
+  ._prepare_data_(c(0.1,0.9), 3) |>
+  add_linpred_draws(mixedmod, ndraws=500)
 
 pred_sleep <-
   dplyr::summarise(pred_sleep, .linpred=mean(.linpred))
